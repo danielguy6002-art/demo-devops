@@ -1,13 +1,46 @@
-name: CI Test
+name: CI Docker Abweyet
+
 on:
   push:
     branches:
       - main
+  # Ajout de workflow_dispatch pour pouvoir lancer manuellement
+  workflow_dispatch:
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write # Nécessaire pour pousser vers le Container Registry
+
     steps:
       - name: Checkout du dépôt
-        uses: actions/checkout@v3
-      - name: Test simple
-        run: echo "CI Pipeline exécuté avec succès !"
+        [cite_start]uses: actions/checkout@v3 # [cite: 49]
+
+      - name: Connexion au Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }} # Nom d'utilisateur GitHub
+          password: ${{ secrets.GITHUB_TOKEN }} # Token d'accès
+
+      - name: Définir les variables de l'image
+        id: meta
+        uses: docker/metadata-action@v4
+        with:
+          images: ghcr.io/${{ github.repository }} # Nom de l'image : ghcr.io/votre-nom/demo-devops
+          tags: |
+            type=raw,value=latest
+            type=sha
+
+      - name: Construire et pousser l'image Docker
+        uses: docker/build-and-push-action@v4
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Test de vérification
+        run: echo "Image Docker construite et poussée vers GHCR !"
